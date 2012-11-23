@@ -1918,20 +1918,37 @@ class Parser:
         print "ObjectInfo"
         unknown1 = self.parseDWord()
         print "\tunknown1 = %s" % unknown1
-        unknown2 = self.parseDWord()
-        print "\tunknown2 = %s" % unknown2
+        size = self.parseDWord()
         n = 20
-        for i in range(0, unknown2 / (n*4)):
-            fields = []
-            for j in range(n):
-                fields.append(self.parseDWord())
-            print fields
+        print "     Address  ?    ? Creator      ?     Size Pool     Format WidthHeight Depth Mips ?   ?   ?   ?   ?   ?   ?   ?"
+        for i in range(0, size / (n*4)):
+            attrs = {}
+            attrs["Address"] = self.parseDWord()
+            attrs["unknown2"] = self.parseDWord()
+            attrs["unknown3"] = self.parseDWord()
+            attrs["Creator"] = self.parseDWord() # 0: app, 1: runtime
+            attrs["unknown5"] = self.parseDWord()
+            attrs["Size"] = self.parseDWord()
+            attrs["Pool"] = self.parseDWord()
+            attrs["Format"] = self.parseDWord()
+            attrs["Width"] = self.parseDWord()
+            attrs["Height"] = self.parseDWord()
+            attrs["Depth"] = self.parseDWord()
+            attrs["Mips"] = self.parseDWord()
+            attrs["unknown13"] = self.parseDWord()
+            attrs["unknown14"] = self.parseDWord()
+            attrs["unknown15"] = self.parseDWord()
+            attrs["unknown16"] = self.parseDWord()
+            attrs["CreateEID"] = self.parseDWord()
+            attrs["DestroyEID"] = self.parseDWord()
+            attrs["unknown19"] = self.parseDWord()
+            attrs["unknown20"] = self.parseDWord()
+            print "{Address:#010x} {unknown2:d} {unknown3:4d} {Creator:d} {unknown5:#010x} {Size:8d} {Pool:4d} {Format:#010x} {Width:5d} {Height:5d} {Depth:5d} {Mips:2d} {unknown13:3d} {unknown14:3d} {unknown15:3d} {unknown16:3d} {CreateEID:3d} {DestroyEID:3d} {unknown19:3d} {unknown20:3d}".format(**attrs)
         #unknown3 = self.parseDWord()
         #print "\tunknown3 = %s" % unknown3
         unknown4 = self.parseString()
         unknown4 = unknown4.split('\0')
         print "\tunknown4 = %r" % unknown4
-
 
     def parseSystemInfo(self):
         print "SystemInfo"
@@ -1973,7 +1990,7 @@ class Parser:
             if len(data) < 4:
                 break
             dword, = struct.unpack('I', data)
-            print "\t0x%08X\t%r" % (dword, data)
+            print "\t0x%08x\t%r" % (dword, data)
 
     def parseElementDeclaration(self):
         elementId = self.parseDWord()
@@ -2064,7 +2081,7 @@ class Parser:
                 if self.stream.tell() >= self.nextChunkOffset:
                     print "unexpected end of chunk"
                 dword = self.parseDWord()
-                print "\t0x%08X" % (dword,)
+                print "\t0x%08x" % (dword,)
         else:
             sys.stdout.flush()
             sys.stderr.write('error: %s has unknown type %i, %s\n' % (element.name, element.typeId, element.fmt))
