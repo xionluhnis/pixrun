@@ -1898,7 +1898,7 @@ class Parser:
         elif tag == 1008:
             self.parseModuleInfo()
         else:
-            print '%08x: unkwnown tag %i' % (offset, tag)
+            print '%08x: unknown tag %i' % (offset, tag)
 
         return True
 
