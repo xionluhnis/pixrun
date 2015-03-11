@@ -39,8 +39,8 @@ class FrameParser(Parser):
             print "Copying chunk %i" % currChunk
             # we must copy the chunk
             tempOffset = self.stream.tell() # save 
-            self.stream.seek(self.lastOffset)
-            buf = self.stream.read(self.nextChunkOffset - self.lastOffset)
+            self.stream.seek(self.lastChunkOffset)
+            buf = self.stream.read(self.nextChunkOffset - self.lastChunkOffset)
             self.output.write(buf)
             # rewind to where we were locally
             self.stream.seek(tempOffset)
@@ -86,7 +86,7 @@ class FrameParser(Parser):
 
     def writeLong(self, longValue):
         self.writeDWord(longValue & 0xFFFFFFFF)         # first 32 bits
-        self.writeDWord(longValue & (0xFFFFFFFF << 32)) # last 32 bits
+        self.writeDWord((longValue >> 32) & 0xFFFFFFFF) # last 32 bits
 
     def writeDWord(self, word):
         buf = struct.pack('I', int(word))

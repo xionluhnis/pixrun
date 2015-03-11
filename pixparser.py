@@ -101,8 +101,7 @@ class Parser(Logger):
 
     def parseChunk(self):
         lastOffset = self.stream.tell()
-        self.lastOffset = lastOffset
-        offset = self.nextChunkOffset
+        self.lastChunkOffset = self.nextChunkOffset
 
         self.log_basic('Chunk %i' % self.chunkID)
         self.chunkID += 1
@@ -118,10 +117,9 @@ class Parser(Logger):
         if not size:
             return False
         size, = struct.unpack('I', size)
-        self.lastChunkOffset = self.nextChunkOffset
         self.nextChunkOffset += 4 + size
 
-        self.log_verbose('%08x:' % (offset,))
+        self.log_verbose('%08x -> %08x' % (self.lastChunkOffset, self.nextChunkOffset))
 
         tag = self.parseDWord()
         if tag == 1000:
@@ -152,7 +150,7 @@ class Parser(Logger):
             self.log_basic('Module Info')
             self.parseModuleInfo()
         else:
-            self.log_minimal('%08x: unknown tag %i' % (offset, tag))
+            self.log_minimal('%08x: unknown tag %i' % (self.lastChunkOffset, tag))
 
         return True
 
