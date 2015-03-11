@@ -101,6 +101,7 @@ class Parser(Logger):
 
     def parseChunk(self):
         lastOffset = self.stream.tell()
+        self.lastOffset = lastOffset
         offset = self.nextChunkOffset
 
         self.log_basic('Chunk %i' % self.chunkID)
@@ -161,7 +162,6 @@ class Parser(Logger):
         unknown3 = self.parseDWord()
         unknown4 = self.parseDWord()
         if self.verbosity >= Verbosity.basic:
-            print "Header"
             print "\tunknown1 = %s" % unknown1
             print "\tunknown2 = %s" % unknown2
             print "\tunknown3 = %s" % unknown3
@@ -286,7 +286,6 @@ class Parser(Logger):
 
         if eventType.name == "Frame Begin":
             self.log_minimal("\tframe = %i (at %i)" % (self.frameID, pos))
-            self.frameID += 1
 
         data = {}
         offsets = {}
@@ -306,7 +305,9 @@ class Parser(Logger):
                 self.log_verbose("\t%s\t%s" % (element.name, value))
 
         # for real parsers
-        self.parseFrame(data, offsets)
+        if eventType.name == "Frame Begin":
+            self.parseFrame(data, offsets)
+            self.frameID += 1
 
         if self.verbosity < Verbosity.basic and eventType.name == "Frame Begin":
             self.nextChunkOffset = data['NextSiblingPos']

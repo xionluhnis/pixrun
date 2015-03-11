@@ -10,9 +10,12 @@
 
 """Entry point for PIXrun frame copy program"""
 
+import os
 import struct
 import sys
 from pixparser import Parser
+
+LongSize = 2 * struct.calcsize('I')
 
 class FrameParser(Parser):
     def __init__(self, stream, output, frames):
@@ -20,13 +23,37 @@ class FrameParser(Parser):
         self.output = output
         self.frames = frames
         self.skipped = 0 # to be removed from offsets
-        self.stream_length = of.fstat(self.stream.fileno()).st_size
+        self.stream_length = os.fstat(self.stream.fileno()).st_size
+
+    def parse(self):
+        Parser.parse(self)
+        self.output.flush()
+
+    def parseChunk(self):
+        currChunk = self.chunkID
+        currFrame = self.frameID
+        res = Parser.parseChunk(self)
+        
+        # did we parse something else than a frame?
+        if self.frameID == currFrame:
+            print "Copying chunk %i" % currChunk
+            # we must copy the chunk
+            tempOffset = self.stream.tell() # save 
+            self.stream.seek(self.lastOffset)
+            buf = self.stream.read(self.nextChunkOffset - self.lastOffset)
+            self.output.write(buf)
+            # rewind to where we were locally
+            self.stream.seek(tempOffset)
+
+        # forward the parsing result
+        return res
 
     def parseFrame(self, data, offsets):
+        print "Copying frame %i" % self.frameID
         baseOffset = data['ThisEventPos']
         assert baseOffset == self.lastChunkOffset # are our offsets correct?
         nextOffset = data['NextSiblingPos']
-        if nextOffset == 0
+        if nextOffset == 0:
             nextOffset = self.stream_length
         frameSize = nextOffset - baseOffset
         
@@ -42,11 +69,14 @@ class FrameParser(Parser):
             self.writeLong(baseOffset - self.skipped)
             
             # - then NextSiblingPos
-            nextOffset = max(0, data['NextSiblingPos'] - self.skipped)
-            self.writeLong(nextOffset - self.skipped)
+            postOffset = max(0, data['NextSiblingPos'] - self.skipped)
+            self.writeLong(postOffset - self.skipped)
             
             # - finally up to the next frame
-            buf = self.stream.seek(offsets['NextSiblingPos'] + 2 * struct.calcsize('I'))
+            restartOffset = offsets['NextSiblingPos'] + LongSize
+            assert restartOffset == offsets['ThisEventPos'] + 2 * LongSize
+            self.stream.seek(restartOffset)
+            buf = self.stream.read(nextOffset - restartOffset)
             self.output.write(buf)
             
         else:
@@ -54,13 +84,11 @@ class FrameParser(Parser):
             self.skipped += frameSize
 
     def writeLong(self, longValue):
-        first = longValue & 0xFFFFFFFF # first 32 bits
-        second = longValue & (0xFFFFFFFF << 32) # last 32 bits
-        self.writeDWord(self, first)
-        self.writeDWord(self, second)
+        self.writeDWord(longValue & 0xFFFFFFFF)         # first 32 bits
+        self.writeDWord(longValue & (0xFFFFFFFF << 32)) # last 32 bits
 
     def writeDWord(self, word):
-        buf = struct.pack('I', word)
+        buf = struct.pack('I', int(word))
         self.output.write(buf)
 
 def main():
@@ -82,7 +110,7 @@ def main():
         for r in ranges:
             if ':' in r:
                 parts = r.split(':')
-                start = parts[0]
+                start = int(parts[0])
                 if len(parts) == 2:
                     step = 1
                     end = int(parts[1]) + 1
