@@ -34,6 +34,7 @@
 """Parser for PIXRun files."""
 
 
+import os
 import struct
 import sys
 from pixfunc import functionName
@@ -87,6 +88,7 @@ class Parser(Logger):
     def __init__(self, stream, verbosity=0):
         Logger.__init__(self, verbosity)
         self.stream = stream
+        self.lastChunkOffset = 0
         self.nextChunkOffset = 0
         self.elements = {}
         self.eventTypes = {}
@@ -109,10 +111,13 @@ class Parser(Logger):
                 print '%08x: skipping %i bytes' % (lastOffset, self.nextChunkOffset - lastOffset)
                 self.parseUnknown()
             self.stream.seek(self.nextChunkOffset)
+
+        # parsing new chunk
         size = self.stream.read(4)
         if not size:
             return False
         size, = struct.unpack('I', size)
+        self.lastChunkOffset = self.nextChunkOffset
         self.nextChunkOffset += 4 + size
 
         self.log_verbose('%08x:' % (offset,))
@@ -280,7 +285,7 @@ class Parser(Logger):
         pos = self.stream.tell()
 
         if eventType.name == "Frame Begin":
-            self.log_minimal("\tframe = %i" % self.frameID)
+            self.log_minimal("\tframe = %i (at %i)" % (self.frameID, pos))
             self.frameID += 1
 
         data = {}
@@ -297,8 +302,17 @@ class Parser(Logger):
                 value = fieldFormat
                 self.log_verbose("\t%s\t%s" % (element.name, value))
 
+        # for real parsers
+        self.parseFrame(data)
+
         if self.verbosity < Verbosity.basic and eventType.name == "Frame Begin":
             self.nextChunkOffset = data['NextSiblingPos']
+            # special case for end of file
+            if self.nextChunkOffset == 0:
+                self.nextChunkOffset = os.fstat(self.stream.fileno()).st_size
+
+    def parseFrame(self, data):
+        pass # to be implemented by parents
 
     def parseEventAsync(self):
         eventId = self.parseDWord()
