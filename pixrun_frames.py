@@ -1850,13 +1850,16 @@ verbosity = 2
 
 class Parser:
 
-    def __init__(self, stream):
+    def __init__(self, stream, output, fb, fe):
         self.stream = stream
         self.nextChunkOffset = 0
         self.elements = {}
         self.eventTypes = {}
         self.it = 0
-        self.frameID = 1
+        self.frames = []
+        self.output = output
+        self.frame_begin = fb
+        self.frame_end = fe
 
     def parse(self):
         while self.parseChunk():
@@ -2064,8 +2067,16 @@ class Parser:
                 value = fieldFormat
                 print "\t%s\t%s" % (element.name, value)
 
-        if verbosity < 2 and eventType.name == "Frame Begin":
+        if eventType.name == "Frame Begin":
             self.nextChunkOffset = data['NextSiblingPos']
+            frame = {}
+            frame['from'] = data['ThisEventPos']
+            frame['to'] = data['NextSiblingPos']
+            self.frames.append(frame)
+            self.output.write("[%i] -> [%i]\n" % (frame['from'], frame['to']))
+            self.output.flush()
+            if frame['from'] >= frame['to']:
+                exit(0)
 
     def parseEventAsync(self):
         eventId = self.parseDWord()
@@ -2134,9 +2145,14 @@ class Parser:
 
 
 def main():
-    for arg in sys.argv[1:]:
-        parser = Parser(open(arg, 'rb'))
-        parser.parse()
+    in_file = open(sys.argv[1], 'rb')
+    if len(sys.argv) >= 3:
+        ou_file = open(sys.argv[2], 'wb')
+    else:
+        ou_file = open('output.pixrun')
+    
+    parser = Parser(in_file, ou_file, frame_begin, frame_end)
+    parser.parse()
 
 
 if __name__ == '__main__':
