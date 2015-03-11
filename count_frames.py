@@ -8,7 +8,7 @@
 ##########################################################################
 
 
-"""Entry point for PIXrun parser"""
+"""Entry point for PIXrun frame counter"""
 
 import sys
 from pixparser import Parser
@@ -18,7 +18,7 @@ class FrameParser(Parser):
         Parser.__init__(self, stream, 0)
         self.count = 0
 
-    def parseFrame(self, data):
+    def parseFrame(self, data, offsets):
         self.count += 1
 
 def main():

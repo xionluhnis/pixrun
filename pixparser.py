@@ -289,12 +289,15 @@ class Parser(Logger):
             self.frameID += 1
 
         data = {}
+        offsets = {}
 
         for elementId, fieldFormat in eventType.fields:
             element = self.elements[elementId]
             if fieldFormat.startswith('('):
+                off = self.stream.tell()
                 value = self.parseElement(element)
                 data[element.name] = value
+                offsets[element.name] = off
                 self.log_basic("\t%s\t%r" % (element.name, value))
                 if value is None:
                     break
@@ -303,7 +306,7 @@ class Parser(Logger):
                 self.log_verbose("\t%s\t%s" % (element.name, value))
 
         # for real parsers
-        self.parseFrame(data)
+        self.parseFrame(data, offsets)
 
         if self.verbosity < Verbosity.basic and eventType.name == "Frame Begin":
             self.nextChunkOffset = data['NextSiblingPos']
@@ -311,7 +314,7 @@ class Parser(Logger):
             if self.nextChunkOffset == 0:
                 self.nextChunkOffset = os.fstat(self.stream.fileno()).st_size
 
-    def parseFrame(self, data):
+    def parseFrame(self, data, offsets):
         pass # to be implemented by parents
 
     def parseEventAsync(self):

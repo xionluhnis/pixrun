@@ -1,5 +1,8 @@
 *.py[cod]
 
+# PIXrun files
+*.[Pp][Ii][Xx][Rr][Uu][Nn]
+
 # C extensions
 *.so
 
