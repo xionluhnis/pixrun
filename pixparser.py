@@ -67,6 +67,10 @@ class Logger:
         if self.verbosity >= Verbosity.alldata:
             print str
 
+    def error(self, str):
+        std.stdout.flush()
+        sys.stderr.write('Error: %s' % str)
+
 class Element:
 
     def __init__(self, typeId, name, fmt):
@@ -310,7 +314,7 @@ class Parser(Logger):
 
         # for real parsers
         if eventType.name == "Frame Begin":
-            selected = self.processFrame(data, offsets)
+            selected = self.processFrame(eventType, data, offsets)
             self.frameID += 1
             if self.verbosity < Verbosity.basic and not selected:
                 self.nextChunkOffset = data['NextSiblingPos']
@@ -323,7 +327,7 @@ class Parser(Logger):
     def processEvent(self, eventType, data, offsets):
         pass # to be implemented by parents
 
-    def processFrame(self, data, offsets):
+    def processFrame(self, eventType, data, offsets):
         return False # to be implemented by parents
 
     def parseEventAsync(self):
@@ -366,8 +370,7 @@ class Parser(Logger):
                 dword = self.parseDWord()
                 print ("\t0x%08x" % (dword,))
         else:
-            sys.stdout.flush()
-            sys.stderr.write('error: %s has unknown type %i, %s\n' % (element.name, element.typeId, element.fmt))
+            self.error('%s has unknown type %i, %s\n' % (element.name, element.typeId, element.fmt))
             return None
 
     def parseSetTextureStage(self):

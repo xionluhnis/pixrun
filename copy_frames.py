@@ -22,7 +22,8 @@ class FrameParser(Parser):
         Parser.__init__(self, stream, 0)
         self.output = output
         self.frames = frames
-        self.skipped = 0 # to be removed from offsets
+        self.skipped_bytes  = 0 # byte offset
+        self.skipped_events = 0 # EID offset
         self.stream_length = os.fstat(self.stream.fileno()).st_size
         self.parentFrame = 0
 
@@ -50,47 +51,78 @@ class FrameParser(Parser):
         return res
 
     def processEvent(self, eventType, data, offsets):
-        # copy event data (=> change EID and Parent EID
-        pass
+        pass # we could update the EID data
 
-    def processFrame(self, data, offsets):
+    def processFrame(self, eventType, data, offsets):
         baseOffset = data['ThisEventPos']
         assert baseOffset == self.lastChunkOffset # are our offsets correct?
         nextOffset = data['NextSiblingPos']
         if nextOffset == 0:
             nextOffset = self.stream_length
-        frameSize = nextOffset - baseOffset
         
         if str(self.frameID) in self.frames:
             # copy frame:
             print "Copying frame %i" % self.frameID
+
+            # transformed data
+            transform = {}
+            transform['ThisEventPos'] = baseOffset - self.skipped_bytes
+            transform['NextSiblingPos'] = max(0, data['NextSiblingPos'] - self.skipped_bytes)
+
+            self.copyEvent(eventType, data, offsets, transform)
             
-            # - first up to ThisEventPos
-            self.stream.seek(baseOffset)
-            buf = self.stream.read(offsets['ThisEventPos'] - baseOffset)
+            # - copy full frame content
+            buf = self.stream.read(nextOffset - self.stream.tell())
             self.output.write(buf)
             
-            # - then ThisEventPos
-            self.writeLong(baseOffset - self.skipped)
-            
-            # - then NextSiblingPos
-            postOffset = max(0, data['NextSiblingPos'] - self.skipped)
-            self.writeLong(postOffset - self.skipped)
-            
-            # - finally up to the next frame
-            restartOffset = offsets['NextSiblingPos'] + LongSize
-            assert restartOffset == offsets['ThisEventPos'] + 2 * LongSize
-            self.stream.seek(restartOffset)
-            buf = self.stream.read(nextOffset - restartOffset)
-            self.output.write(buf)
-            
-            # take care of EID / Parent EID in children => cannot skip sadly ...
         else:
             # skip frame
-            self.skipped += frameSize
+	    frameSize = nextOffset - baseOffset
+            self.skipped_bytes += frameSize
             print "Skipping frame %i" % self.frameID
         
         return False
+
+    def copyEvent(self, eventType, data, offsets, transform):
+        anchor = self.lastChunkOffset # where to copy from
+        tempOffset = self.stream.tell()
+        for elementId, fieldFormat in eventType.fields:
+            element = self.elements[elementId]
+            if element.name in transform:
+                # copy part up to here
+                bufSize = offsets[element.name] - anchor
+                if bufSize > 0:
+                    self.stream.seek(anchor)
+                    buf = self.stream.read(bufSize)
+                    self.output.write(buf)
+                else:
+                    assert bufSize == 0
+                # re-parse element data (for size)
+                self.parseElement(element)
+
+                # reset anchor
+                anchor = self.stream.tell()
+                
+                # write new element data
+                self.writeElement(element, transform[element.name])
+
+        # write the rest up to the next event
+        buf = self.stream.read(self.nextChunkOffset - anchor)
+        self.output.write(buf)
+
+    def writeElement(self, element, value): # this should keep the same exact buffer size as read data
+        if element.typeId == 1:
+            self.error('Unsupported string type')
+        elif element.typeId == 2:
+            self.writeDWord(value) # 32bit hex
+        elif element.typeId == 3:
+            self.writeDWord(value) # 32bit int
+        elif element.typeId == 5:
+            self.writeLong(value) # 64bit long
+        elif element.typeId == 7:
+            self.error('Unsupported call package type')
+        else:
+            self.error('%s has unknown type %i, %s ... cannot write!\n' % (element.name, element.typeId, element.fmt))
 
     def writeLong(self, longValue):
         self.writeDWord(longValue & 0xFFFFFFFF)         # first 32 bits

@@ -18,7 +18,7 @@ class FrameParser(Parser):
         Parser.__init__(self, stream, 0)
         self.count = 0
 
-    def processFrame(self, data, offsets):
+    def processFrame(self, eventType, data, offsets):
         self.count += 1
         return False
 
