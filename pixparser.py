@@ -44,6 +44,7 @@ class Verbosity:
     minimal = 1
     basic   = 2
     verbose = 3
+    alldata = 4
 
 class Logger:
 
@@ -60,6 +61,10 @@ class Logger:
 
     def log_verbose(self, str):
         if self.verbosity >= Verbosity.verbose:
+            print str
+
+    def log_alldata(self, str):
+        if self.verbosity >= Verbosity.alldata:
             print str
 
 class Element:
@@ -103,9 +108,6 @@ class Parser(Logger):
         lastOffset = self.stream.tell()
         self.lastChunkOffset = self.nextChunkOffset
 
-        self.log_basic('Chunk %i' % self.chunkID)
-        self.chunkID += 1
-
         if lastOffset != self.nextChunkOffset:
             if self.verbosity >= Verbosity.verbose:
                 print '%08x: skipping %i bytes' % (lastOffset, self.nextChunkOffset - lastOffset)
@@ -119,6 +121,8 @@ class Parser(Logger):
         size, = struct.unpack('I', size)
         self.nextChunkOffset += 4 + size
 
+        self.log_basic('Chunk %i' % self.chunkID)
+        self.chunkID += 1
         self.log_verbose('%08x -> %08x' % (self.lastChunkOffset, self.nextChunkOffset))
 
         tag = self.parseDWord()
@@ -232,12 +236,14 @@ class Parser(Logger):
             self.log_basic("\t%s\t%s" % (module, version))
 
     def parseUnknown(self):
+        if self.verbosity < Verbosity.alldata:
+            return
         while self.stream.tell() < self.nextChunkOffset:
             data = self.stream.read(4)
             if len(data) < 4:
                 break
             dword, = struct.unpack('I', data)
-            self.log_verbose("\t0x%08x\t%r" % (dword, data))
+            print ("\t0x%08x\t%r" % (dword, data))
 
     def parseElementDeclaration(self):
         elementId = self.parseDWord()
@@ -324,7 +330,7 @@ class Parser(Logger):
         self.log_basic("\telement = %s" % self.elements.get(elementId))
         value = self.parseElement(element)
         if value is not None:
-            self.log_basic("\tvalue = %s" % value)
+            self.log_alldata("\tvalue = %s" % value)
 
     def parseElement(self, element):
         if element.typeId == 1:
@@ -347,14 +353,14 @@ class Parser(Logger):
             functionId = self.parseDWord()
             self.log_basic("\tfunction = %s (%i)" % (functionName.get(functionId, ''), functionId))
 
-            if self.verbosity < Verbosity.verbose:
+            if self.verbosity < Verbosity.alldata:
                 return None
 
             for i in xrange(4, size, 4):
                 if self.stream.tell() >= self.nextChunkOffset:
                     print "unexpected end of chunk"
                 dword = self.parseDWord()
-                print "\t0x%08x" % (dword,)
+                print ("\t0x%08x" % (dword,))
         else:
             sys.stdout.flush()
             sys.stderr.write('error: %s has unknown type %i, %s\n' % (element.name, element.typeId, element.fmt))
