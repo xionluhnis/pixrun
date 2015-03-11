@@ -49,7 +49,6 @@ class FrameParser(Parser):
         return res
 
     def parseFrame(self, data, offsets):
-        print "Copying frame %i" % self.frameID
         baseOffset = data['ThisEventPos']
         assert baseOffset == self.lastChunkOffset # are our offsets correct?
         nextOffset = data['NextSiblingPos']
@@ -59,6 +58,7 @@ class FrameParser(Parser):
         
         if str(self.frameID) in self.frames:
             # copy frame:
+            print "Copying frame %i" % self.frameID
             
             # - first up to ThisEventPos
             self.stream.seek(baseOffset)
@@ -82,6 +82,7 @@ class FrameParser(Parser):
         else:
             # skip frame
             self.skipped += frameSize
+            print "Skipping frame %i" % self.frameID
 
     def writeLong(self, longValue):
         self.writeDWord(longValue & 0xFFFFFFFF)         # first 32 bits
