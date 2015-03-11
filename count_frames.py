@@ -18,8 +18,9 @@ class FrameParser(Parser):
         Parser.__init__(self, stream, 0)
         self.count = 0
 
-    def parseFrame(self, data, offsets):
+    def processFrame(self, data, offsets):
         self.count += 1
+        return False
 
 def main():
     if len(sys.argv) < 2:
@@ -27,7 +28,6 @@ def main():
         sys.stderr.write('Requires a pixfile as argument!\n')
         exit(1)
     else:
-        
         pixfile = open(sys.argv[1], 'rb')
         parser = FrameParser(pixfile)
         parser.parse()

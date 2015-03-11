@@ -24,6 +24,7 @@ class FrameParser(Parser):
         self.frames = frames
         self.skipped = 0 # to be removed from offsets
         self.stream_length = os.fstat(self.stream.fileno()).st_size
+        self.parentFrame = 0
 
     def parse(self):
         Parser.parse(self)
@@ -48,7 +49,11 @@ class FrameParser(Parser):
         # forward the parsing result
         return res
 
-    def parseFrame(self, data, offsets):
+    def processEvent(self, eventType, data, offsets):
+        # copy event data (=> change EID and Parent EID
+        pass
+
+    def processFrame(self, data, offsets):
         baseOffset = data['ThisEventPos']
         assert baseOffset == self.lastChunkOffset # are our offsets correct?
         nextOffset = data['NextSiblingPos']
@@ -79,10 +84,13 @@ class FrameParser(Parser):
             buf = self.stream.read(nextOffset - restartOffset)
             self.output.write(buf)
             
+            # take care of EID / Parent EID in children => cannot skip sadly ...
         else:
             # skip frame
             self.skipped += frameSize
             print "Skipping frame %i" % self.frameID
+        
+        return False
 
     def writeLong(self, longValue):
         self.writeDWord(longValue & 0xFFFFFFFF)         # first 32 bits

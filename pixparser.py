@@ -310,17 +310,21 @@ class Parser(Logger):
 
         # for real parsers
         if eventType.name == "Frame Begin":
-            self.parseFrame(data, offsets)
+            selected = self.processFrame(data, offsets)
             self.frameID += 1
+            if self.verbosity < Verbosity.basic and not selected:
+                self.nextChunkOffset = data['NextSiblingPos']
+                # special case for end of file
+                if self.nextChunkOffset == 0:
+                    self.nextChunkOffset = os.fstat(self.stream.fileno()).st_size
+        else:
+            self.processEvent(eventType, data, offsets)
 
-        if self.verbosity < Verbosity.basic and eventType.name == "Frame Begin":
-            self.nextChunkOffset = data['NextSiblingPos']
-            # special case for end of file
-            if self.nextChunkOffset == 0:
-                self.nextChunkOffset = os.fstat(self.stream.fileno()).st_size
-
-    def parseFrame(self, data, offsets):
+    def processEvent(self, eventType, data, offsets):
         pass # to be implemented by parents
+
+    def processFrame(self, data, offsets):
+        return False # to be implemented by parents
 
     def parseEventAsync(self):
         eventId = self.parseDWord()
