@@ -340,6 +340,9 @@ class Parser(Logger):
         if value is not None:
             self.log_alldata("\tvalue = %s" % value)
 
+    def processCall(self, functionName):
+        pass
+
     def parseElement(self, element):
         if element.typeId == 1:
             return self.parseString()
@@ -359,7 +362,9 @@ class Parser(Logger):
             size = self.parseDWord()
             self.log_basic("\tsize = %u" % size)
             functionId = self.parseDWord()
-            self.log_basic("\tfunction = %s (%i)" % (functionName.get(functionId, ''), functionId))
+            functionStr = functionName.get(functionId, '')
+            self.processCall(functionStr)
+            self.log_basic("\tfunction = %s (%i)" % (functionStr, functionId))
 
             if self.verbosity < Verbosity.alldata:
                 return None
